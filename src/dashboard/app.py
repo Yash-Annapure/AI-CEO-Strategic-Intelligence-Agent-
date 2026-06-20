@@ -3,7 +3,6 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-import json
 from collections import Counter
 from src.storage.vector_store import VectorStore
 from src.processing.embedder import Embedder
