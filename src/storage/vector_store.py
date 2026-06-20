@@ -49,6 +49,10 @@ class VectorStore:
                     "source": chunk.get("source", ""),
                     "date": chunk.get("date", ""),
                     "chunk_index": chunk_index,
+                    "sentiment": chunk.get("sentiment", "neutral"),
+                    "sentiment_score": float(chunk.get("sentiment_score", 0.0)),
+                    "topic": chunk.get("topic", "unknown"),
+                    "topic_score": float(chunk.get("topic_score", 0.0)),
                 }],
             )
             added += 1

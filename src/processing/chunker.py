@@ -38,6 +38,10 @@ def chunk_document(doc, chunk_size=500, overlap=50):
             "score": doc.get("score", 0),
             "num_comments": doc.get("num_comments", 0),
             "chunk_index": i,
+            "sentiment": doc.get("sentiment", "neutral"),
+            "sentiment_score": doc.get("sentiment_score", 0.0),
+            "topic": doc.get("topic", "unknown"),
+            "topic_score": doc.get("topic_score", 0.0),
         })
 
     return chunked_docs
