@@ -6,16 +6,24 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from collections import Counter
 from datetime import datetime
 import pandas as pd
+import altair as alt
 from src.storage.vector_store import VectorStore
 from config import TARGET_COMPANY
 
 st.set_page_config(
     page_title=f"{TARGET_COMPANY} CEO Intelligence Dashboard",
-    page_icon="🧠",
+    page_icon="⚡",
     layout="wide",
 )
 
-st.title(f"🧠 {TARGET_COMPANY} Strategic Intelligence Dashboard")
+col_logo, col_title = st.columns([1, 7])
+with col_logo:
+    st.image(
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Nvidia_logo.svg/320px-Nvidia_logo.svg.png",
+        width=130,
+    )
+with col_title:
+    st.title(f"{TARGET_COMPANY} Strategic Intelligence Dashboard")
 
 
 @st.cache_resource
@@ -68,8 +76,8 @@ last_update = dates[0] if dates else "No data yet"
 st.header("Section 1: Company Overview")
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Company", TARGET_COMPANY)
-col2.metric("Industry", "Semiconductors / AI")
-col3.metric("Documents collected", total_chunks)
+col2.metric("Industry", "Semis & AI")
+col3.metric("Documents", total_chunks)
 col4.metric("Data sources", len(sources))
 col5.metric("Last updated", last_update)
 st.divider()
@@ -103,7 +111,17 @@ else:
     with col_b:
         st.subheader("Topic Breakdown")
         df_topics = pd.DataFrame(topic_counts.most_common(), columns=["Topic", "Count"])
-        st.bar_chart(df_topics.set_index("Topic"))
+        chart = (
+            alt.Chart(df_topics)
+            .mark_bar()
+            .encode(
+                x=alt.X("Count:Q", title="Count"),
+                y=alt.Y("Topic:N", sort="-x", title=None),
+                color=alt.value("#4C9BE8"),
+            )
+            .properties(height=300)
+        )
+        st.altair_chart(chart, use_container_width=True)
 
     st.subheader("Emerging Technology Topics")
     ai_topics = [t for t in topics if "AI" in t or "machine" in t.lower() or "product" in t.lower()]
@@ -178,8 +196,27 @@ else:
     col2.metric("Neutral", counts.get("neutral", 0))
     col3.metric("Negative", counts.get("negative", 0))
 
-    df_sent = pd.DataFrame(counts.items(), columns=["Sentiment", "Count"])
-    st.bar_chart(df_sent.set_index("Sentiment"))
+    df_sent = pd.DataFrame(
+        [{"Sentiment": k, "Count": v} for k, v in counts.items()]
+    )
+    sent_chart = (
+        alt.Chart(df_sent)
+        .mark_bar()
+        .encode(
+            x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("Count:Q", title="Count"),
+            color=alt.Color(
+                "Sentiment:N",
+                scale=alt.Scale(
+                    domain=["positive", "neutral", "negative"],
+                    range=["#2ECC71", "#95A5A6", "#E74C3C"],
+                ),
+                legend=None,
+            ),
+        )
+        .properties(height=280)
+    )
+    st.altair_chart(sent_chart, use_container_width=True)
 
     # news vs public (Reddit) sentiment split
     news_sentiments = [m.get("sentiment") for m in all_meta if "reddit" not in m.get("source", "").lower()]
