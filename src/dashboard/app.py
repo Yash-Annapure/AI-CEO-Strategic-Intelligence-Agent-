@@ -18,10 +18,9 @@ st.set_page_config(
 
 col_logo, col_title = st.columns([1, 7])
 with col_logo:
-    st.image(
-        os.path.join(os.path.dirname(__file__), "assets", "nvidia_logo.png"),
-        width=130,
-    )
+    _logo_path = os.path.join(os.path.dirname(__file__), "assets", "nvidia_logo.png")
+    with open(_logo_path, "rb") as _f:
+        st.image(_f.read(), width=130)
 with col_title:
     st.title(f"{TARGET_COMPANY} Strategic Intelligence Dashboard")
 
