@@ -19,7 +19,7 @@ st.set_page_config(
 col_logo, col_title = st.columns([1, 7])
 with col_logo:
     st.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Nvidia_logo.svg/320px-Nvidia_logo.svg.png",
+        os.path.join(os.path.dirname(__file__), "assets", "nvidia_logo.png"),
         width=130,
     )
 with col_title:
