@@ -86,7 +86,10 @@ class CEOAgent:
         }
         for key, pattern in keys.items():
             match = re.search(pattern, raw_text, re.IGNORECASE | re.DOTALL)
-            sections[key] = match.group(1).strip() if match else raw_text[:300]
+            text = match.group(1).strip() if match else raw_text[:300]
+            # strip any prompt template placeholders the model echoed back
+            text = re.sub(r'\[.*?\]', '', text).strip()
+            sections[key] = text
         return sections
 
     def query(self, question):

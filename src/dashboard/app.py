@@ -87,12 +87,18 @@ else:
 
     with col_a:
         st.subheader("Recent News")
-        recent = sorted(all_meta, key=lambda m: m.get("date", ""), reverse=True)[:8]
-        for item in recent:
-            src = item.get("source", "")
-            date = item.get("date", "")[:10]
-            url = item.get("url", "")
-            st.markdown(f"- **[{src}]** {date} — {url[:60]}...")
+        recent_docs = store.collection.get(include=["metadatas", "documents"])
+        paired = sorted(
+            zip(recent_docs["metadatas"], recent_docs["documents"]),
+            key=lambda x: x[0].get("date", ""),
+            reverse=True
+        )[:8]
+        for meta, doc in paired:
+            src = meta.get("source", "")
+            date = meta.get("date", "")[:10]
+            title = doc.split(".")[0][:90]
+            url = meta.get("url", "")
+            st.markdown(f"- **[{src}]** {date} — [{title}]({url})")
 
     with col_b:
         st.subheader("Topic Breakdown")
