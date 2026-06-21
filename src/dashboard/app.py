@@ -18,7 +18,7 @@ st.set_page_config(
 
 col_logo, col_title = st.columns([1, 7])
 with col_logo:
-    _logo_path = os.path.join(os.path.dirname(__file__), "assets", "nvidia_logo.png")
+    _logo_path = os.path.join(os.path.dirname(__file__), "assets", "NVIDIA_LOGO.png")
     with open(_logo_path, "rb") as _f:
         st.image(_f.read(), width=130)
 with col_title:
