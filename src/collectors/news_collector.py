@@ -7,7 +7,7 @@ from config import NEWS_API_KEY, TARGET_COMPANY
 BASE_URL = "https://newsapi.org/v2/everything"
 
 
-def fetch_news(query, page_size=100):
+def fetch_news(query, page_size=10):
     params = {
         "q": query,
         "language": "en",

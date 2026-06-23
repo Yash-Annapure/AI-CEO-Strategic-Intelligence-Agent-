@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .venv/
 uv.lock
+notes.md
+viva_script.md
+code_walkthrough.md
