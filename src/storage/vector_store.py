@@ -18,6 +18,16 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"},
         )
 
+    def clear(self):
+        """deletes the entire collection and recreates it empty so the next
+        pipeline run starts with a clean slate rather than appending to old data."""
+        self.client.delete_collection(self.collection.name)
+        self.collection = self.client.get_or_create_collection(
+            name=self.collection.name,
+            metadata={"hnsw:space": "cosine"},
+        )
+        print("Vector store cleared.")
+
     def url_exists(self, url):
         """checks if any chunk with this url is already stored so we avoid duplicates.
         returns True if the url is already in the collection, False otherwise."""

@@ -47,6 +47,7 @@ def run_pipeline():
     embedder = Embedder()
     embedded = embedder.embed_chunks(chunks)
     store = VectorStore()
+    store.clear()
     added = store.store(embedded)
 
     print(f"\n=== Pipeline complete ===")

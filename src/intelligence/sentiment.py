@@ -30,22 +30,43 @@ def _get_vader():
 
 def analyze_news_sentiment(text):
     """takes a news article text string and runs it through a HuggingFace financial
-    sentiment model. returns a dict with label (positive/negative/neutral) and score."""
+    sentiment model. returns a dict with label (positive/negative/neutral) and score.
+
+    how the score is calculated:
+      distilroberta-finetuned-financial-news-sentiment-analysis is a transformer
+      fine-tuned on financial news headlines. it outputs a softmax probability
+      across 3 classes (positive, negative, neutral). sentiment_score is the
+      winning class's probability (0.0 to 1.0) — i.e. how confident the model
+      is in its classification."""
     pipe = _get_news_pipeline()
+    # pipeline returns [{"label": "positive", "score": 0.94}] for the top class
     result = pipe(text[:512])[0]
+    sentiment_label = result["label"].lower()
+    confidence_score = round(result["score"], 4)
     return {
-        "label": result["label"].lower(),
-        "score": round(result["score"], 4),
+        "label": sentiment_label,
+        "score": confidence_score,
     }
 
 
 def analyze_reddit_sentiment(text):
     """takes a reddit post/comment string and runs NLTK VADER on it.
     VADER is rule-based and works well on short social media text.
-    returns a dict with label and the compound score (-1 to +1)."""
+    returns a dict with label and the compound score (-1 to +1).
+
+    how the score is calculated:
+      VADER assigns valence scores to individual words/phrases using a hand-crafted
+      lexicon, then combines them with rules for emphasis, punctuation, and negation.
+      polarity_scores() returns: pos, neg, neu (proportions of the text), and compound
+      (normalized weighted sum, ranging from -1.0 most negative to +1.0 most positive).
+      we use the compound score as sentiment_score and apply fixed thresholds to label:
+        compound >= +0.05 → positive
+        compound <= -0.05 → negative
+        otherwise         → neutral"""
     vader = _get_vader()
-    scores = vader.polarity_scores(text)
-    compound = scores["compound"]
+    # raw_scores = {"neg": 0.12, "neu": 0.65, "pos": 0.23, "compound": 0.34}
+    raw_scores = vader.polarity_scores(text)
+    compound = raw_scores["compound"]
 
     if compound >= 0.05:
         label = "positive"

@@ -27,7 +27,15 @@ TOPIC_LABELS = [
 
 def classify_document(doc):
     """takes a cleaned document dict and runs zero-shot classification to assign
-    the most relevant topic from TOPIC_LABELS. adds topic and topic_score to the doc."""
+    the most relevant topic from TOPIC_LABELS. adds topic and topic_score to the doc.
+
+    how the score is calculated:
+      bart-large-mnli computes Natural Language Inference (NLI) entailment between
+      the article text and each candidate label phrase. the model asks: does this text
+      ENTAIL (support) the label? the entailment logits are passed through softmax
+      across all 8 labels, producing probabilities that sum to 1.0.
+      topic_score is the winning label's probability — how confidently the model
+      says this article belongs to that topic vs all other options."""
     pipe = _get_classifier()
     text = doc.get("title", "") + " " + doc.get("text", "")
     text = text.strip()[:512]
@@ -35,14 +43,18 @@ def classify_document(doc):
     if not text:
         return {**doc, "topic": "unknown", "topic_score": 0.0}
 
-    result = pipe(text, candidate_labels=TOPIC_LABELS)
-    top_label = result["labels"][0]
-    top_score = result["scores"][0]
+    # multi_label=False → softmax across labels (mutually exclusive classification)
+    # result["labels"] is sorted by score descending
+    # result["scores"] are the softmax probabilities for each label
+    result = pipe(text, candidate_labels=TOPIC_LABELS, multi_label=False)
+
+    winning_label = result["labels"][0]
+    winning_probability = result["scores"][0]
 
     return {
         **doc,
-        "topic": top_label,
-        "topic_score": round(top_score, 4),
+        "topic": winning_label,
+        "topic_score": round(winning_probability, 4),
     }
 
 

@@ -36,25 +36,27 @@ An AI-powered system that continuously collects live information about NVIDIA fr
 │   ChromaDB (persistent, cosine similarity)                      │
 │   Each chunk stored with: text, embedding, source, date,        │
 │   sentiment, sentiment_score, topic, topic_score, url           │
+│   Cleared and rebuilt on every pipeline run (no stale data)     │
 └───────────────────────────────────┬─────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                       AI CEO AGENT (RAG)                        │
+│                  LANGGRAPH REACT AGENT                          │
 │                                                                 │
-│   Query → Embed → Retrieve top-k chunks → Build prompt          │
-│        → Qwen2.5-3B-Instruct → Strategic output                 │
+│   Goal → LLM decides tool → tool executes → observe → loop     │
 │                                                                 │
-│   Outputs: Opportunities / Risks / Recommendations / Briefing   │
+│   Tools:  search_knowledge    → RAGRetriever (retriever.py)     │
+│           get_sentiment_summary  ·  get_topic_summary           │
+│                                                                 │
+│   LLM: Qwen2.5-3b via Ollama (ChatOllama)                       │
 └───────────────────────────────────┬─────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    STREAMLIT DASHBOARD                          │
 │                                                                 │
-│   7 sections: Company Overview, Market Intelligence,            │
-│   Opportunity Monitor, Risk Monitor, Sentiment Analysis,        │
-│   Strategic Recommendations, CEO Briefing                       │
+│   3 sections: System Overview · Intelligence Feed               │
+│               Strategic Agent (goal → tool trace → answer)      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -94,19 +96,21 @@ Google RSS ──┘         │
                    - 384-dimensional vectors
                         │
                         ▼
-                   store.store()
+                   store.clear() → store.store()
                    - ChromaDB PersistentClient
                    - cosine similarity index
-                   - skip if URL already exists
+                   - purged and rebuilt every run
                         │
                   ┌──────┴──────┐
                   │             │
                   ▼             ▼
-            Dashboard        CEOAgent.query(question)
-            reads metadata   - embed question
-            directly from    - retrieve top-k chunks
-            ChromaDB         - prompt + Qwen LLM
-                             - return answer + sources
+            Dashboard        LangGraph ReAct Agent
+            Section 1+2:     - LLM chooses tools
+            reads metadata   - search_knowledge →
+            directly from      RAGRetriever embeds
+            ChromaDB           query, cosine search
+                             - LLM reads chunks,
+                               generates answer
 ```
 
 ---
@@ -122,8 +126,9 @@ Google RSS ──┘         │
 | Topic classification | `facebook/bart-large-mnli` | zero-shot, no labelled training data needed |
 | Embeddings | `all-MiniLM-L6-v2` | fast, 384-dim, strong semantic similarity |
 | Vector store | `ChromaDB` | persistent, easy cosine similarity retrieval |
-| LLM | `Qwen2.5-3B-Instruct` | open-source, instruction-tuned, fits on shared GPU |
-| RAG framework | custom (no LangChain) | full control over retrieval and prompt logic |
+| LLM | `Qwen2.5-3b` via Ollama | served locally via OpenAI-compatible API, tool-calling support |
+| Agent framework | `LangGraph` `create_react_agent` | handles ReAct loop automatically; tools bound to ChatOllama |
+| RAG retriever | `RAGRetriever` (retriever.py) | dedicated retrieval-only component: embed → cosine search → chunks |
 | Dashboard | `Streamlit` | rapid prototyping, native Python |
 | Package manager | `uv` | fast, reproducible environments |
 
@@ -131,17 +136,18 @@ Google RSS ──┘         │
 
 ## AI Pipeline
 
-The agent uses **Retrieval-Augmented Generation (RAG)**:
+The agent uses a **LangGraph ReAct loop** (Reason + Act) backed by **RAG**:
 
-1. **User submits a question** (or the system triggers a structured analysis)
-2. The question is **embedded** using `all-MiniLM-L6-v2` into a 384-dim vector
-3. ChromaDB performs **cosine similarity search** to retrieve the top-k most relevant chunks
-4. Retrieved chunks are **formatted as context** with source and date labels
-5. A **structured prompt** is built combining the context and the specific task (briefing / opportunities / risks / recommendations)
-6. `Qwen2.5-3B-Instruct` **generates the response** grounded in the retrieved evidence
-7. The response is **parsed** and displayed with source attribution
+1. **User submits a strategic goal** via the dashboard
+2. `create_react_agent` starts the loop — the LLM reads the goal and decides which tool to call
+3. **Tool executes** — e.g. `search_knowledge(query)` calls `RAGRetriever`:
+   - embeds the query with `all-MiniLM-L6-v2` → 384-dim vector
+   - cosine similarity search in ChromaDB → top-k chunks returned as text
+4. **LLM observes** the tool result (the retrieved chunks) and decides: call another tool or produce a final answer
+5. Loop repeats until the LLM produces an answer with no tool call
+6. Dashboard shows the **tool trace** (which tools were called and with what args) + the **final answer**
 
-For structured outputs (opportunities, risks, recommendations), the prompts instruct the model to follow a strict labeled format, which is then parsed with regex into structured dicts for display.
+The retrieval (R) and generation (G) halves of RAG are in separate files: `retriever.py` handles embed → search → return chunks; `langgraph_agent.py` handles the LLM loop that generates the final grounded response.
 
 ---
 
@@ -162,8 +168,14 @@ ChromaDB is persistent by default (survives restarts), supports metadata filteri
 **Why chunk at 500 characters with 50 overlap?**
 The embedding model has a 256-token limit. 500 characters is approximately 100-150 tokens — safely within limits. The 50-character overlap ensures that sentences split across chunk boundaries are still captured in at least one chunk.
 
-**Why Qwen2.5-3B instead of 7B?**
-The Datalab environment is a shared GPU server. The 7B model caused CUDA out-of-memory errors due to other users occupying GPU memory. The 3B model fits comfortably and produces coherent strategic outputs for this use case.
+**Why LangGraph instead of a custom RAG loop?**
+LangGraph's `create_react_agent` handles the ReAct loop automatically — the LLM decides which tool to call, the tool executes, the result is fed back, and the loop continues until the LLM produces a final answer. This makes the agent behavior explicit and explainable: every decision is a tool call the professor can see in the tool trace.
+
+**Why Ollama instead of loading Qwen via HuggingFace?**
+Ollama serves the model via a local OpenAI-compatible API, which means `ChatOllama` can bind tools natively. Qwen2.5 supports tool calling in this mode, making the ReAct loop reliable without complex prompt engineering.
+
+**Why clear ChromaDB on every run?**
+The original deduplication-by-URL approach caused stale data to persist across runs — old articles were never refreshed. Clearing the collection before each pipeline run ensures the knowledge base always reflects the latest collected data.
 
 ---
 
@@ -187,11 +199,13 @@ AI-CEO-Strategic-Intelligence-Agent/
     │   ├── sentiment.py           # dual-model sentiment analysis
     │   └── classifier.py         # zero-shot topic classification
     ├── storage/
-    │   └── vector_store.py        # ChromaDB interface
+    │   └── vector_store.py        # ChromaDB interface + clear()
+    ├── rag/
+    │   └── retriever.py           # RAGRetriever: embed → cosine search → chunks
     ├── agent/
-    │   └── ceo_agent.py           # RAG agent + structured analysis
+    │   └── langgraph_agent.py     # LangGraph ReAct agent + 3 tools
     └── dashboard/
-        └── app.py                 # Streamlit executive dashboard
+        └── app.py                 # Streamlit dashboard (3 sections)
 ```
 
 ---
