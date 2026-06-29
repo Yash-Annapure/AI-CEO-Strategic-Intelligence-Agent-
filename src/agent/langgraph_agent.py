@@ -86,13 +86,17 @@ def run_agent(goal: str, ollama_model: str = "qwen2.5:3b") -> dict:
 
     returns: {"answer": str, "tool_calls": list of {"tool": str, "input": dict}}
     """
-    llm = ChatOllama(model=ollama_model)
+    llm = ChatOllama(model=ollama_model, num_predict=1024)
     tools = [search_knowledge, get_sentiment_summary, get_topic_summary]
 
     system_prompt = (
-        f"You are a strategic intelligence agent for {TARGET_COMPANY}. "
-        "Use the available tools to retrieve evidence before drawing conclusions. "
-        "Base every recommendation on what you find in the knowledge base."
+        f"You are a strategic intelligence analyst for {TARGET_COMPANY}. "
+        "Rules: "
+        "1. Always call at least one tool before drawing conclusions. "
+        "2. Be specific — name the sources you found (e.g. Barron's, Reddit). "
+        "3. Give 3-5 concrete bullet points, no vague generalities. "
+        "4. End with a clear, definitive recommendation. "
+        "5. Always complete your response — never trail off mid-sentence."
     )
 
     agent = create_react_agent(llm, tools, prompt=system_prompt)
