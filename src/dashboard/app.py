@@ -129,15 +129,20 @@ st.header("Section 2: Market Intelligence")
 if total_chunks == 0:
     st.info("No data yet. Run the pipeline from the sidebar.")
 else:
-    recent_docs = store.collection.get(include=["metadatas", "documents"])
-    paired = sorted(
-        zip(recent_docs["metadatas"], recent_docs["documents"]),
+    all_docs = store.collection.get(include=["metadatas", "documents"])
+    all_paired = list(zip(all_docs["metadatas"], all_docs["documents"]))
+
+    news_items = sorted(
+        [(m, d) for m, d in all_paired if "reddit" not in m.get("source", "").lower()],
         key=lambda x: x[0].get("date", ""),
         reverse=True,
-    )[:12]
+    )[:6]
 
-    news_items = [(m, d) for m, d in paired if "reddit" not in m.get("source", "").lower()]
-    reddit_items = [(m, d) for m, d in paired if "reddit" in m.get("source", "").lower()]
+    reddit_items = sorted(
+        [(m, d) for m, d in all_paired if "reddit" in m.get("source", "").lower()],
+        key=lambda x: x[0].get("date", ""),
+        reverse=True,
+    )[:6]
 
     col_news, col_reddit = st.columns(2)
     with col_news:
@@ -189,36 +194,35 @@ else:
 
     col_left, col_right = st.columns(2)
 
+    def _sentiment_chart(df):
+        sort_order = ["positive", "neutral", "negative"]
+        base = alt.Chart(df).encode(
+            x=alt.X("Sentiment:N", title=None,
+                    axis=alt.Axis(labelAngle=0),
+                    sort=sort_order),
+            color=alt.Color(
+                "Sentiment:N",
+                scale=alt.Scale(
+                    domain=["positive", "neutral", "negative"],
+                    range=["#2ECC71", "#95A5A6", "#E74C3C"],
+                ),
+                legend=None,
+            ),
+        )
+        bars = base.mark_bar().encode(y=alt.Y("Count:Q", title="Count"))
+        labels = base.mark_text(align="center", baseline="bottom", dy=-4, color="white").encode(
+            y=alt.Y("Count:Q"),
+            text=alt.Text("Count:Q"),
+        )
+        return (bars + labels).properties(height=300)
+
     with col_left:
         st.subheader("News Sentiment")
         if news_meta:
             df_news = pd.DataFrame([
-                {"Sentiment": k, "Count": v}
-                for k, v in news_sent.items()
+                {"Sentiment": k, "Count": v} for k, v in news_sent.items()
             ])
-            chart_news = (
-                alt.Chart(df_news).mark_bar()
-                .encode(
-                    x=alt.X("Sentiment:N", title=None,
-                             axis=alt.Axis(labelAngle=0),
-                             sort=["positive", "neutral", "negative"]),
-                    y=alt.Y("Count:Q"),
-                    color=alt.Color(
-                        "Sentiment:N",
-                        scale=alt.Scale(
-                            domain=["positive", "neutral", "negative"],
-                            range=["#2ECC71", "#95A5A6", "#E74C3C"],
-                        ),
-                        legend=None,
-                    ),
-                )
-                .properties(height=300)
-            )
-            st.altair_chart(chart_news, use_container_width=True)
-            cm1, cm2, cm3 = st.columns(3)
-            cm1.metric("Positive", news_sent.get("positive", 0))
-            cm2.metric("Neutral", news_sent.get("neutral", 0))
-            cm3.metric("Negative", news_sent.get("negative", 0))
+            st.altair_chart(_sentiment_chart(df_news), use_container_width=True)
         else:
             st.info("No news articles in knowledge base.")
 
@@ -226,32 +230,9 @@ else:
         st.subheader("Public Sentiment (Reddit)")
         if reddit_meta:
             df_reddit = pd.DataFrame([
-                {"Sentiment": k, "Count": v}
-                for k, v in reddit_sent.items()
+                {"Sentiment": k, "Count": v} for k, v in reddit_sent.items()
             ])
-            chart_reddit = (
-                alt.Chart(df_reddit).mark_bar()
-                .encode(
-                    x=alt.X("Sentiment:N", title=None,
-                             axis=alt.Axis(labelAngle=0),
-                             sort=["positive", "neutral", "negative"]),
-                    y=alt.Y("Count:Q"),
-                    color=alt.Color(
-                        "Sentiment:N",
-                        scale=alt.Scale(
-                            domain=["positive", "neutral", "negative"],
-                            range=["#2ECC71", "#95A5A6", "#E74C3C"],
-                        ),
-                        legend=None,
-                    ),
-                )
-                .properties(height=300)
-            )
-            st.altair_chart(chart_reddit, use_container_width=True)
-            cr1, cr2, cr3 = st.columns(3)
-            cr1.metric("Positive", reddit_sent.get("positive", 0))
-            cr2.metric("Neutral", reddit_sent.get("neutral", 0))
-            cr3.metric("Negative", reddit_sent.get("negative", 0))
+            st.altair_chart(_sentiment_chart(df_reddit), use_container_width=True)
         else:
             st.info("No Reddit data in knowledge base.")
 
