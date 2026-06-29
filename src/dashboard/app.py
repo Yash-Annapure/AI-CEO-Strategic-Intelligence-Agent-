@@ -109,19 +109,14 @@ total_chunks = store.count()
 all_meta = store.collection.get(include=["metadatas"])["metadatas"] if total_chunks > 0 else []
 sources = list(set(m.get("source", "") for m in all_meta if m.get("source")))
 dash_data = load_dashboard_data()
-last_updated = (
-    dash_data.get("generated_at", "Not generated")[:19].replace("T", " ")
-    if dash_data else "Not generated"
-)
 
 # ── Section 1: Company Overview ───────────────────────────────────────────────
 st.header("Section 1: Company Overview")
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4 = st.columns(4)
 c1.metric("Company", TARGET_COMPANY)
 c2.metric("Industry", "Semiconductors & AI")
 c3.metric("Documents collected", total_chunks)
 c4.metric("Data sources", len(sources))
-c5.metric("Last update", last_updated)
 st.divider()
 
 # ── Section 2: Market Intelligence ───────────────────────────────────────────
