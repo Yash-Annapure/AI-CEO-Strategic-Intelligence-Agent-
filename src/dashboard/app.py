@@ -148,10 +148,6 @@ else:
         st.subheader("Sentiment Breakdown")
         sentiments = [m.get("sentiment", "unknown") for m in all_meta]
         sent_counts = Counter(sentiments)
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Positive", sent_counts.get("positive", 0))
-        col_b.metric("Neutral", sent_counts.get("neutral", 0))
-        col_c.metric("Negative", sent_counts.get("negative", 0))
         df_sent = pd.DataFrame([{"Sentiment": k, "Count": v} for k, v in sent_counts.items()])
         sent_chart = (
             alt.Chart(df_sent).mark_bar()
@@ -167,9 +163,13 @@ else:
                     legend=None,
                 ),
             )
-            .properties(height=250)
+            .properties(height=350)
         )
         st.altair_chart(sent_chart, use_container_width=True)
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Positive", sent_counts.get("positive", 0))
+        col_b.metric("Neutral", sent_counts.get("neutral", 0))
+        col_c.metric("Negative", sent_counts.get("negative", 0))
     with col_right:
         st.subheader("Topic Breakdown")
         topics = [m.get("topic", "unknown") for m in all_meta]
@@ -182,7 +182,7 @@ else:
                 y=alt.Y("Topic:N", sort="-x", title=None),
                 color=alt.value("#4C9BE8"),
             )
-            .properties(height=300)
+            .properties(height=350)
         )
         st.altair_chart(topic_chart, use_container_width=True)
 st.divider()
