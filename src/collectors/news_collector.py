@@ -1,4 +1,5 @@
 import requests
+import datetime
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -7,11 +8,13 @@ from config import NEWS_API_KEY, TARGET_COMPANY
 BASE_URL = "https://newsapi.org/v2/everything"
 
 
-def fetch_news(query, page_size=10):
+def fetch_news(query, page_size=10, days_back=30):
+    from_date = (datetime.datetime.now() - datetime.timedelta(days=days_back)).strftime("%Y-%m-%d")
     params = {
         "q": query,
         "language": "en",
         "sortBy": "publishedAt",
+        "from": from_date,
         "pageSize": page_size,
         "apiKey": NEWS_API_KEY,
     }

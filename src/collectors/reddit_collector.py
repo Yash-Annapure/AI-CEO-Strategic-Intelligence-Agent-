@@ -7,9 +7,12 @@ from config import TARGET_COMPANY
 SUBREDDITS = ["nvidia", "stocks", "investing", "technology", "artificial"]
 
 
+_NO_CACHE_HEADERS = {"Cache-Control": "no-cache", "Pragma": "no-cache"}
+
+
 def fetch_subreddit_posts(subreddit, limit=50):
     url = f"https://www.reddit.com/r/{subreddit}/search.rss?q={TARGET_COMPANY}&restrict_sr=1&sort=new&limit={limit}"
-    feed = feedparser.parse(url)
+    feed = feedparser.parse(url, request_headers=_NO_CACHE_HEADERS)
 
     if feed.bozo and not feed.entries:
         print(f"Failed to fetch r/{subreddit}")

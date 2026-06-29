@@ -1,4 +1,5 @@
 import feedparser
+import datetime
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -6,14 +7,19 @@ from config import TARGET_COMPANY
 
 SEARCH_TERMS = [TARGET_COMPANY.lower(), "jensen huang", "gpu", "ai chip"]
 
-RSS_FEEDS = {
-    "Google News NVIDIA": f"https://news.google.com/rss/search?q={TARGET_COMPANY}+stock+AI&hl=en-US&gl=US&ceid=US:en",
-    "Google News Jensen": "https://news.google.com/rss/search?q=Jensen+Huang+NVIDIA&hl=en-US&gl=US&ceid=US:en",
-}
+_NO_CACHE_HEADERS = {"Cache-Control": "no-cache", "Pragma": "no-cache"}
+
+
+def _build_rss_feeds():
+    after = (datetime.datetime.now() - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+    return {
+        "Google News NVIDIA": f"https://news.google.com/rss/search?q={TARGET_COMPANY}+stock+AI+after:{after}&hl=en-US&gl=US&ceid=US:en",
+        "Google News Jensen": f"https://news.google.com/rss/search?q=Jensen+Huang+NVIDIA+after:{after}&hl=en-US&gl=US&ceid=US:en",
+    }
 
 
 def fetch_feed(name, url):
-    feed = feedparser.parse(url)
+    feed = feedparser.parse(url, request_headers=_NO_CACHE_HEADERS)
 
     if feed.bozo and not feed.entries:
         print(f"Failed to fetch {name}")
@@ -43,7 +49,7 @@ def fetch_feed(name, url):
 
 def collect():
     all_articles = []
-    for name, url in RSS_FEEDS.items():
+    for name, url in _build_rss_feeds().items():
         articles = fetch_feed(name, url)
         print(f"{name}: {len(articles)} articles mentioning {TARGET_COMPANY}")
         all_articles.extend(articles)
