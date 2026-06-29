@@ -124,21 +124,52 @@ st.header("Section 2: Intelligence Feed")
 if total_chunks == 0:
     st.info("No data yet. Run the pipeline from the sidebar.")
 else:
+    recent_docs = store.collection.get(include=["metadatas", "documents"])
+    paired = sorted(
+        zip(recent_docs["metadatas"], recent_docs["documents"]),
+        key=lambda x: x[0].get("date", ""),
+        reverse=True,
+    )[:8]
+    for meta, doc in paired:
+        src = meta.get("source", "")
+        date = meta.get("date", "")[:10]
+        title = doc.split(".")[0][:90]
+        url = meta.get("url", "")
+        st.markdown(f"- **[{src}]** {date} — [{title}]({url})")
+st.divider()
+
+# ── Section 3: Data Analysis ───────────────────────────────────────────────────
+st.header("Section 3: Data Analysis")
+if total_chunks == 0:
+    st.info("No data yet. Run the pipeline from the sidebar.")
+else:
     col_left, col_right = st.columns(2)
     with col_left:
-        st.subheader("Recent Articles")
-        recent_docs = store.collection.get(include=["metadatas", "documents"])
-        paired = sorted(
-            zip(recent_docs["metadatas"], recent_docs["documents"]),
-            key=lambda x: x[0].get("date", ""),
-            reverse=True,
-        )[:8]
-        for meta, doc in paired:
-            src = meta.get("source", "")
-            date = meta.get("date", "")[:10]
-            title = doc.split(".")[0][:90]
-            url = meta.get("url", "")
-            st.markdown(f"- **[{src}]** {date} — [{title}]({url})")
+        st.subheader("Sentiment Breakdown")
+        sentiments = [m.get("sentiment", "unknown") for m in all_meta]
+        sent_counts = Counter(sentiments)
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Positive", sent_counts.get("positive", 0))
+        col_b.metric("Neutral", sent_counts.get("neutral", 0))
+        col_c.metric("Negative", sent_counts.get("negative", 0))
+        df_sent = pd.DataFrame([{"Sentiment": k, "Count": v} for k, v in sent_counts.items()])
+        sent_chart = (
+            alt.Chart(df_sent).mark_bar()
+            .encode(
+                x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Count:Q"),
+                color=alt.Color(
+                    "Sentiment:N",
+                    scale=alt.Scale(
+                        domain=["positive", "neutral", "negative"],
+                        range=["#2ECC71", "#95A5A6", "#E74C3C"],
+                    ),
+                    legend=None,
+                ),
+            )
+            .properties(height=250)
+        )
+        st.altair_chart(sent_chart, use_container_width=True)
     with col_right:
         st.subheader("Topic Breakdown")
         topics = [m.get("topic", "unknown") for m in all_meta]
@@ -154,37 +185,6 @@ else:
             .properties(height=300)
         )
         st.altair_chart(topic_chart, use_container_width=True)
-st.divider()
-
-# ── Section 3: Sentiment Analysis ─────────────────────────────────────────────
-st.header("Section 3: Sentiment Analysis")
-if total_chunks == 0:
-    st.info("No data yet. Run the pipeline from the sidebar.")
-else:
-    sentiments = [m.get("sentiment", "unknown") for m in all_meta]
-    sent_counts = Counter(sentiments)
-    col_a, col_b, col_c = st.columns(3)
-    col_a.metric("Positive", sent_counts.get("positive", 0))
-    col_b.metric("Neutral", sent_counts.get("neutral", 0))
-    col_c.metric("Negative", sent_counts.get("negative", 0))
-    df_sent = pd.DataFrame([{"Sentiment": k, "Count": v} for k, v in sent_counts.items()])
-    sent_chart = (
-        alt.Chart(df_sent).mark_bar()
-        .encode(
-            x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("Count:Q"),
-            color=alt.Color(
-                "Sentiment:N",
-                scale=alt.Scale(
-                    domain=["positive", "neutral", "negative"],
-                    range=["#2ECC71", "#95A5A6", "#E74C3C"],
-                ),
-                legend=None,
-            ),
-        )
-        .properties(height=250)
-    )
-    st.altair_chart(sent_chart, use_container_width=True)
 st.divider()
 
 # ── Section 4: Opportunities ──────────────────────────────────────────────────
