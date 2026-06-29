@@ -152,7 +152,7 @@ else:
         sent_chart = (
             alt.Chart(df_sent).mark_bar()
             .encode(
-                x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0)),
+                x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0), sort=["positive", "neutral", "negative"]),
                 y=alt.Y("Count:Q"),
                 color=alt.Color(
                     "Sentiment:N",
