@@ -34,6 +34,44 @@ def search_knowledge(query: str) -> str:
 
 
 @tool
+def detect_opportunities() -> str:
+    """Retrieve intelligence about strategic opportunities for NVIDIA:
+    emerging technologies, new markets, partnerships, product opportunities.
+    Call this tool before identifying or listing opportunities."""
+    return _get_retriever().retrieve_as_text(
+        f"NVIDIA strategic opportunities emerging technology new markets partnerships growth expansion"
+    )
+
+
+@tool
+def assess_risks() -> str:
+    """Retrieve intelligence about risks and threats facing NVIDIA:
+    competitive threats, regulatory changes, negative sentiment, supply chain issues.
+    Call this tool before identifying or listing risks."""
+    return _get_retriever().retrieve_as_text(
+        f"NVIDIA risks threats competition regulatory legal supply chain challenges negative"
+    )
+
+
+@tool
+def generate_recommendations() -> str:
+    """Retrieve strategic context needed to generate CEO-level recommendations for NVIDIA.
+    Call this tool before producing strategic recommendations."""
+    return _get_retriever().retrieve_as_text(
+        f"NVIDIA strategic direction CEO priorities competitive positioning market leadership decisions"
+    )
+
+
+@tool
+def get_ceo_briefing_context() -> str:
+    """Retrieve broad market context needed to write an executive CEO briefing for NVIDIA.
+    Call this tool before generating the CEO briefing."""
+    return _get_retriever().retrieve_as_text(
+        f"NVIDIA recent developments market position news announcements industry trends"
+    )
+
+
+@tool
 def get_sentiment_summary() -> str:
     """Get the overall market sentiment breakdown across all collected documents.
     Returns counts of positive, neutral, and negative articles."""
@@ -87,7 +125,15 @@ def run_agent(goal: str, ollama_model: str = "qwen2.5:3b") -> dict:
     returns: {"answer": str, "tool_calls": list of {"tool": str, "input": dict}}
     """
     llm = ChatOllama(model=ollama_model, num_predict=1024)
-    tools = [search_knowledge, get_sentiment_summary, get_topic_summary]
+    tools = [
+        search_knowledge,
+        detect_opportunities,
+        assess_risks,
+        generate_recommendations,
+        get_ceo_briefing_context,
+        get_sentiment_summary,
+        get_topic_summary,
+    ]
 
     system_prompt = (
         f"You are a strategic intelligence analyst for {TARGET_COMPANY}. "

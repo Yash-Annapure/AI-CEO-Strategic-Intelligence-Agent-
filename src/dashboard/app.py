@@ -86,7 +86,7 @@ with st.sidebar:
             added = store.store(embedded)
             st.success(f"Data stored: {added} chunks.")
 
-        with st.spinner("Running strategic agent analysis (3 goals)..."):
+        with st.spinner("Running strategic agent analysis (4 sections)..."):
             from src.agent.langgraph_agent import run_agent
             from main import AGENT_GOALS
             import datetime
@@ -109,18 +109,23 @@ total_chunks = store.count()
 all_meta = store.collection.get(include=["metadatas"])["metadatas"] if total_chunks > 0 else []
 sources = list(set(m.get("source", "") for m in all_meta if m.get("source")))
 dash_data = load_dashboard_data()
+last_updated = (
+    dash_data.get("generated_at", "Not generated")[:19].replace("T", " ")
+    if dash_data else "Not generated"
+)
 
-# ── Section 1: System Overview ────────────────────────────────────────────────
-st.header("Section 1: System Overview")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Company", TARGET_COMPANY)
-col2.metric("Industry", "Semis & AI")
-col3.metric("Chunks in knowledge base", total_chunks)
-col4.metric("Data sources", len(sources))
+# ── Section 1: Company Overview ───────────────────────────────────────────────
+st.header("Section 1: Company Overview")
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Company", TARGET_COMPANY)
+c2.metric("Industry", "Semiconductors & AI")
+c3.metric("Documents collected", total_chunks)
+c4.metric("Data sources", len(sources))
+c5.metric("Last update", last_updated)
 st.divider()
 
-# ── Section 2: Intelligence Feed ──────────────────────────────────────────────
-st.header("Section 2: Intelligence Feed")
+# ── Section 2: Market Intelligence ───────────────────────────────────────────
+st.header("Section 2: Market Intelligence")
 if total_chunks == 0:
     st.info("No data yet. Run the pipeline from the sidebar.")
 else:
@@ -129,84 +134,161 @@ else:
         zip(recent_docs["metadatas"], recent_docs["documents"]),
         key=lambda x: x[0].get("date", ""),
         reverse=True,
-    )[:8]
-    for meta, doc in paired:
-        src = meta.get("source", "")
-        date = meta.get("date", "")[:10]
-        title = doc.split(".")[0][:90]
-        url = meta.get("url", "")
-        st.markdown(f"- **[{src}]** {date} — [{title}]({url})")
+    )[:12]
+
+    news_items = [(m, d) for m, d in paired if "reddit" not in m.get("source", "").lower()]
+    reddit_items = [(m, d) for m, d in paired if "reddit" in m.get("source", "").lower()]
+
+    col_news, col_reddit = st.columns(2)
+    with col_news:
+        st.subheader("Recent News & Announcements")
+        for meta, doc in news_items[:6]:
+            src = meta.get("source", "")
+            date = meta.get("date", "")[:10]
+            title = doc.split(".")[0][:90]
+            url = meta.get("url", "")
+            topic = meta.get("topic", "")
+            st.markdown(f"- **[{src}]** `{topic}` {date} — [{title}]({url})")
+        if not news_items:
+            st.info("No news articles collected.")
+
+    with col_reddit:
+        st.subheader("Public Sentiment & Discussions")
+        for meta, doc in reddit_items[:6]:
+            src = meta.get("source", "")
+            date = meta.get("date", "")[:10]
+            title = doc.split(".")[0][:90]
+            url = meta.get("url", "")
+            sent = meta.get("sentiment", "")
+            sent_badge = {"positive": "🟢", "neutral": "🟡", "negative": "🔴"}.get(sent, "⚪")
+            st.markdown(f"- {sent_badge} **[{src}]** {date} — [{title}]({url})")
+        if not reddit_items:
+            st.info("No Reddit discussions collected.")
 st.divider()
 
-# ── Section 3: Data Analysis ───────────────────────────────────────────────────
-st.header("Section 3: Data Analysis")
-if total_chunks == 0:
-    st.info("No data yet. Run the pipeline from the sidebar.")
-else:
-    col_left, col_right = st.columns(2)
-    with col_left:
-        st.subheader("Sentiment Breakdown")
-        sentiments = [m.get("sentiment", "unknown") for m in all_meta]
-        sent_counts = Counter(sentiments)
-        df_sent = pd.DataFrame([{"Sentiment": k, "Count": v} for k, v in sent_counts.items()])
-        sent_chart = (
-            alt.Chart(df_sent).mark_bar()
-            .encode(
-                x=alt.X("Sentiment:N", title=None, axis=alt.Axis(labelAngle=0), sort=["positive", "neutral", "negative"]),
-                y=alt.Y("Count:Q"),
-                color=alt.Color(
-                    "Sentiment:N",
-                    scale=alt.Scale(
-                        domain=["positive", "neutral", "negative"],
-                        range=["#2ECC71", "#95A5A6", "#E74C3C"],
-                    ),
-                    legend=None,
-                ),
-            )
-            .properties(height=350)
-        )
-        st.altair_chart(sent_chart, use_container_width=True)
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Positive", sent_counts.get("positive", 0))
-        col_b.metric("Neutral", sent_counts.get("neutral", 0))
-        col_c.metric("Negative", sent_counts.get("negative", 0))
-    with col_right:
-        st.subheader("Topic Breakdown")
-        topics = [m.get("topic", "unknown") for m in all_meta]
-        topic_counts = Counter(topics)
-        df_topics = pd.DataFrame(topic_counts.most_common(), columns=["Topic", "Count"])
-        topic_chart = (
-            alt.Chart(df_topics).mark_bar()
-            .encode(
-                x=alt.X("Count:Q", title="Count"),
-                y=alt.Y("Topic:N", sort="-x", title=None),
-                color=alt.value("#4C9BE8"),
-            )
-            .properties(height=350)
-        )
-        st.altair_chart(topic_chart, use_container_width=True)
-st.divider()
-
-# ── Section 4: Opportunities ──────────────────────────────────────────────────
-st.header("Section 4: Opportunities")
+# ── Section 3: Opportunity Monitor ───────────────────────────────────────────
+st.header("Section 3: Opportunity Monitor")
 render_agent_section(dash_data.get("opportunities") if dash_data else None)
 st.divider()
 
-# ── Section 5: Risks ──────────────────────────────────────────────────────────
-st.header("Section 5: Risks")
+# ── Section 4: Risk Monitor ───────────────────────────────────────────────────
+st.header("Section 4: Risk Monitor")
 render_agent_section(dash_data.get("risks") if dash_data else None)
 st.divider()
 
-# ── Section 6: Strategic Recommendations ──────────────────────────────────────
+# ── Section 5: Sentiment Analysis ─────────────────────────────────────────────
+st.header("Section 5: Sentiment Analysis")
+if total_chunks == 0:
+    st.info("No data yet. Run the pipeline from the sidebar.")
+else:
+    news_meta = [m for m in all_meta if "reddit" not in m.get("source", "").lower()]
+    reddit_meta = [m for m in all_meta if "reddit" in m.get("source", "").lower()]
+
+    news_sent = Counter(m.get("sentiment", "unknown") for m in news_meta)
+    reddit_sent = Counter(m.get("sentiment", "unknown") for m in reddit_meta)
+
+    col_left, col_right = st.columns(2)
+
+    with col_left:
+        st.subheader("News Sentiment")
+        if news_meta:
+            df_news = pd.DataFrame([
+                {"Sentiment": k, "Count": v}
+                for k, v in news_sent.items()
+            ])
+            chart_news = (
+                alt.Chart(df_news).mark_bar()
+                .encode(
+                    x=alt.X("Sentiment:N", title=None,
+                             axis=alt.Axis(labelAngle=0),
+                             sort=["positive", "neutral", "negative"]),
+                    y=alt.Y("Count:Q"),
+                    color=alt.Color(
+                        "Sentiment:N",
+                        scale=alt.Scale(
+                            domain=["positive", "neutral", "negative"],
+                            range=["#2ECC71", "#95A5A6", "#E74C3C"],
+                        ),
+                        legend=None,
+                    ),
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(chart_news, use_container_width=True)
+            cm1, cm2, cm3 = st.columns(3)
+            cm1.metric("Positive", news_sent.get("positive", 0))
+            cm2.metric("Neutral", news_sent.get("neutral", 0))
+            cm3.metric("Negative", news_sent.get("negative", 0))
+        else:
+            st.info("No news articles in knowledge base.")
+
+    with col_right:
+        st.subheader("Public Sentiment (Reddit)")
+        if reddit_meta:
+            df_reddit = pd.DataFrame([
+                {"Sentiment": k, "Count": v}
+                for k, v in reddit_sent.items()
+            ])
+            chart_reddit = (
+                alt.Chart(df_reddit).mark_bar()
+                .encode(
+                    x=alt.X("Sentiment:N", title=None,
+                             axis=alt.Axis(labelAngle=0),
+                             sort=["positive", "neutral", "negative"]),
+                    y=alt.Y("Count:Q"),
+                    color=alt.Color(
+                        "Sentiment:N",
+                        scale=alt.Scale(
+                            domain=["positive", "neutral", "negative"],
+                            range=["#2ECC71", "#95A5A6", "#E74C3C"],
+                        ),
+                        legend=None,
+                    ),
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(chart_reddit, use_container_width=True)
+            cr1, cr2, cr3 = st.columns(3)
+            cr1.metric("Positive", reddit_sent.get("positive", 0))
+            cr2.metric("Neutral", reddit_sent.get("neutral", 0))
+            cr3.metric("Negative", reddit_sent.get("negative", 0))
+        else:
+            st.info("No Reddit data in knowledge base.")
+
+    st.subheader("Sentiment Trends — Topic Breakdown")
+    topics = [m.get("topic", "unknown") for m in all_meta]
+    topic_counts = Counter(topics)
+    df_topics = pd.DataFrame(topic_counts.most_common(), columns=["Topic", "Count"])
+    topic_chart = (
+        alt.Chart(df_topics).mark_bar()
+        .encode(
+            x=alt.X("Count:Q", title="Count"),
+            y=alt.Y("Topic:N", sort="-x", title=None),
+            color=alt.value("#4C9BE8"),
+        )
+        .properties(height=300)
+    )
+    st.altair_chart(topic_chart, use_container_width=True)
+st.divider()
+
+# ── Section 6: Strategic Recommendations ─────────────────────────────────────
 st.header("Section 6: Strategic Recommendations")
 render_agent_section(dash_data.get("recommendations") if dash_data else None)
 st.divider()
 
-# ── Section 7: Strategic Agent ────────────────────────────────────────────────
-st.header("Section 7: Strategic Agent")
-if total_chunks == 0:
-    st.info("No data yet. Run the pipeline first.")
+# ── Section 7: CEO Briefing ───────────────────────────────────────────────────
+st.header("Section 7: CEO Briefing")
+if dash_data and dash_data.get("ceo_briefing"):
+    render_agent_section(dash_data["ceo_briefing"])
+    st.divider()
+    st.subheader("Ask the Strategic Agent")
 else:
+    if total_chunks == 0:
+        st.info("No data yet. Run the pipeline first.")
+    else:
+        st.info("Run the full pipeline to generate the CEO briefing.")
+
+if total_chunks > 0:
     st.write(
         "Ask any strategic question. The agent autonomously decides which tools "
         "to call, retrieves evidence from the knowledge base, and produces a "

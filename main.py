@@ -23,16 +23,30 @@ RESULTS_PATH = os.path.join(os.path.dirname(__file__), "results", "dashboard_dat
 
 AGENT_GOALS = {
     "opportunities": (
-        f"What are the top 3 strategic opportunities for {TARGET_COMPANY} "
-        "based on the latest intelligence? Be specific and cite your sources."
+        f"Identify the top 3 strategic opportunities for {TARGET_COMPANY}. "
+        "Call detect_opportunities first to retrieve evidence. "
+        "For each opportunity provide: Title, Impact Level (High/Medium/Low), "
+        "Evidence (cite sources by name), Confidence (High/Medium/Low)."
     ),
     "risks": (
-        f"What are the biggest risks facing {TARGET_COMPANY} right now? "
-        "Be specific and cite your sources."
+        f"Identify the top 3 risks facing {TARGET_COMPANY}. "
+        "Call assess_risks first to retrieve evidence. "
+        "For each risk provide: Title, Category (competitive/regulatory/financial/operational), "
+        "Severity (High/Medium/Low), Evidence (cite sources by name)."
     ),
     "recommendations": (
-        f"What are the top 3 strategic recommendations you would give "
-        f"{TARGET_COMPANY}'s CEO based on the current intelligence? Be specific."
+        f"Generate the top 3 strategic recommendations for {TARGET_COMPANY}'s CEO. "
+        "Call generate_recommendations first to retrieve evidence. "
+        "For each recommendation provide: Recommendation, Priority (High/Medium/Low), "
+        "Supporting Evidence (cite sources), Expected Impact, Risk Level."
+    ),
+    "ceo_briefing": (
+        f"Generate an executive CEO briefing for {TARGET_COMPANY}. "
+        "Call get_ceo_briefing_context first to retrieve evidence. "
+        "Structure your response with exactly three clearly labelled sections: "
+        "WHAT HAPPENED (key recent developments), "
+        "WHY IT MATTERS (strategic significance), "
+        "WHAT MANAGEMENT SHOULD DO NEXT (concrete action items)."
     ),
 }
 
@@ -83,7 +97,7 @@ def run_pipeline():
         print(f"  Saved to results/dashboard_data.json")
     except Exception as e:
         print(f"  Agent step failed (is Ollama running?): {e}")
-        print("  Dashboard sections 4-6 will be empty until you re-run the pipeline.")
+        print("  Dashboard sections 3, 4, 6, 7 will be empty until you re-run the pipeline.")
 
     print(f"\n=== Pipeline complete ===")
     print(f"  Documents collected:  {len(raw)}")
