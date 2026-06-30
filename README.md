@@ -45,8 +45,9 @@ An AI-powered system that continuously collects live information about NVIDIA fr
 │                                                                 │
 │   Goal → LLM decides tool → tool executes → observe → loop     │
 │                                                                 │
-│   Tools:  search_knowledge    → RAGRetriever (retriever.py)     │
-│           get_sentiment_summary  ·  get_topic_summary           │
+│   Tools:  search_knowledge · detect_opportunities · assess_risks │
+│           generate_recommendations · get_ceo_briefing_context   │
+│           get_sentiment_summary · get_topic_summary             │
 │                                                                 │
 │   LLM: Qwen2.5-3b via Ollama (ChatOllama)                       │
 └───────────────────────────────────┬─────────────────────────────┘
@@ -55,8 +56,10 @@ An AI-powered system that continuously collects live information about NVIDIA fr
 ┌─────────────────────────────────────────────────────────────────┐
 │                    STREAMLIT DASHBOARD                          │
 │                                                                 │
-│   3 sections: System Overview · Intelligence Feed               │
-│               Strategic Agent (goal → tool trace → answer)      │
+│   7 sections: Company Overview · Market Intelligence            │
+│               Opportunity Monitor · Risk Monitor                │
+│               Sentiment Analysis · Strategic Recommendations    │
+│               CEO Briefing (pre-computed + live agent)          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -203,9 +206,9 @@ AI-CEO-Strategic-Intelligence-Agent/
     ├── rag/
     │   └── retriever.py           # RAGRetriever: embed → cosine search → chunks
     ├── agent/
-    │   └── langgraph_agent.py     # LangGraph ReAct agent + 3 tools
+    │   └── langgraph_agent.py     # LangGraph ReAct agent + 7 tools
     └── dashboard/
-        └── app.py                 # Streamlit dashboard (3 sections)
+        └── app.py                 # Streamlit dashboard (7 sections)
 ```
 
 ---
@@ -219,14 +222,30 @@ uv sync
 # 2. Set up environment variables
 cp .env.example .env  # fill in NEWS_API_KEY, MODEL_PATH
 
-# 3. Run the full data pipeline
-python main.py
+# 3. Install and start Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+ollama serve                  # keep this terminal open
 
-# 4. Launch the dashboard
-streamlit run src/dashboard/app.py --server.port 8508
+# 4. Pull the model (new terminal)
+ollama pull qwen2.5:3b
+
+# 5. Launch the dashboard
+uv run streamlit run src/dashboard/app.py
+
+# 6. Then click "Run Full Pipeline" from the dashboard sidebar
+#    (collects data, runs NLP pipeline, and runs the agent — no need to run main.py separately)
 ```
 
-On Datalab (no direct port access), expose via cloudflared:
+On Datalab (no direct port access), expose via Cloudflare tunnel:
 ```bash
-./cloudflared tunnel --url http://localhost:8508
+# Install cloudflared (one-time)
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared && chmod +x cloudflared
+
+# Run the tunnel
+./cloudflared tunnel --url http://localhost:8501
+```
+
+If `apt-get install zstd` fails during Ollama install:
+```bash
+sudo apt-get update && sudo apt-get install -y zstd
 ```
